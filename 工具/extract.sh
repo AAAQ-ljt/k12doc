@@ -1,29 +1,25 @@
 #!/usr/bin/env bash
-# 教材 PDF 文本提取（本机已验证：xpdf/poppler pdftotext 4.00）
-# 用法: ./extract.sh "<pdf路径>" "<输出txt路径>"
-# 示例: ./extract.sh "doc/小学/数学/[人教版] 义务教育教科书·数学五年级下册.pdf" "提取缓存/小学-数学-五年级下册.txt"
+# 教材原件文本提取统一入口（PDF / pptx / docx，支持目录批量），内部调用 extract.py。
+# 用法:
+#   ./extract.sh "<输入文件或目录...>" "<输出txt>"
+#   ./extract.sh --filter <文件名子串> "<目录>" "<输出txt>"
+# 示例:
+#   ./extract.sh "doc/小学/数学/[人教版] 义务教育教科书·数学五年级下册.pdf" "提取缓存/小学-数学-五年级下册.txt"
+#   ./extract.sh --filter 一年级 "doc/小学/信息科技" "提取缓存/小学-信息科技-一年级全一册.txt"
+# 环境要求: Git Bash + Python 3.8+ 即可。pip 依赖（python-pptx/pypdf/python-docx）首次用到自动
+# 安装（或 pip install -r 工具/requirements.txt 预装）；pdftotext 有则 PDF 提取自动首选。
+# 提取损失与对策详见 AGENTS.md 第八节。
 set -euo pipefail
 
-PDF="${1:-}"
-OUT="${2:-}"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -z "$PDF" ] || [ -z "$OUT" ]; then
-  echo "用法: $0 <pdf路径> <输出txt路径>"
+if command -v python >/dev/null 2>&1; then
+  PY=(python)
+elif command -v py >/dev/null 2>&1; then
+  PY=(py -3)
+else
+  echo "错误: 未找到 Python（需要 3.8+），请安装后重试，或让 AI 助手代为处理。" >&2
   exit 1
 fi
-if [ ! -f "$PDF" ]; then
-  echo "错误: 找不到 PDF 文件: $PDF"
-  exit 1
-fi
 
-mkdir -p "$(dirname "$OUT")"
-pdftotext -enc UTF-8 "$PDF" "$OUT"
-
-BYTES=$(wc -c < "$OUT")
-echo "已提取: $OUT (${BYTES} 字节)"
-echo ""
-echo "自查提醒:"
-echo "1. 若上方出现 'Unknown character collection Adobe-GB1' / 'SimSun' 报错："
-echo "   文本主体通常仍可提取，但部分宋体内容可能缺失，编改前必须通读全文，"
-echo "   发现语义断裂按学科通识补全并标注（以本教材为准）；丢字严重时改用 pypdf/PDFBox 提取。"
-echo "2. 若输出只有几 KB：可能是扫描版 PDF（无文字层），需 OCR，勿硬提。"
+exec "${PY[@]}" "$DIR/extract.py" "$@"
